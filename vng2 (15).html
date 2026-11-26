@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VNG² — Tabletop RPG Terminal</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🟩</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Tiny5&display=swap" rel="stylesheet">
+<style>
+:root{
+  --green:#03fc0f; --green-dim:#0a8f16; --green-faint:rgba(3,252,15,.18);
+  --bg:#050705; --panel-bg:#000;
+  color-scheme: dark;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;}
+html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
+body{
+  margin:0; min-height:100%; background:var(--bg); color:var(--green);
+  font-family:"Tiny5",Consolas,monospace; font-size:16px; letter-spacing:.5px; overflow-x:hidden;
+  -webkit-font-smoothing:none; text-rendering:optimizeSpeed;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(3,252,15,.04) 0px, rgba(3,252,15,.04) 1px, transparent 1px, transparent 3px),
+    radial-gradient(ellipse at 20% 0%, rgba(3,252,15,.08), transparent 60%);
+}
+.logo-font{font-family:"Press Start 2P","Tiny5",monospace;}
+.px-font{font-family:"Tiny5","Press Start 2P",monospace; letter-spacing:1px;}
+.hidden{display:none !important;}
+
+/* scanline overlay that jumps instead of flowing */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0px, rgba(0,0,0,.18) 1px, transparent 1px, transparent 3px);
+  animation:scan 1s steps(4) infinite;}
+@keyframes scan{0%{background-position:0 0}100%{background-position:0 12px}}
+
+.flicker{animation:flicker 2.6s steps(1) infinite;}
+@keyframes flicker{0%,78%,80%,100%{opacity:1}79%{opacity:.4}86%{opacity:1}87%{opacity:.55}88%{opacity:1}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.blinker{animation:blink .6s steps(1) infinite;}
+/* retro-loading glitch reveal for windows/panels popping open (linear, no bounce/overshoot) */
+@keyframes crtOn{
+  0%{opacity:0;clip-path:inset(0 0 100% 0);transform:translateX(0)}
+  10%{opacity:1;clip-path:inset(0 0 78% 0);transform:translateX(-7px)}
+  20%{clip-path:inset(0 0 78% 0);transform:translateX(6px)}
+  30%{clip-path:inset(0 0 55% 0);transform:translateX(-5px)}
+  40%{clip-path:inset(0 0 55% 0);transform:translateX(4px)}
+  50%{clip-path:inset(0 0 34% 0);transform:translateX(-3px)}
+  60%{clip-path:inset(0 0 34% 0);transform:translateX(3px)}
+  70%{clip-path:inset(0 0 14% 0);transform:translateX(-2px)}
+  80%{clip-path:inset(0 0 14% 0);transform:translateX(2px)}
+  90%{clip-path:inset(0 0 0 0);transform:translateX(-1px)}
+  100%{opacity:1;clip-path:inset(0 0 0 0);transform:translateX(0)}
+}
+.crt-on{animation:crtOn .5s linear;}
+.caret{display:inline-block;width:.6em;background:var(--green);margin-left:2px;animation:blink .6s steps(1) infinite;}
+
+/* glitch: rgb-split jitter, triggered briefly via JS */
+@keyframes glitchJitter{
+  0%{transform:translate(0,0);clip-path:inset(0 0 0 0)}
+  10%{transform:translate(-3px,1px);clip-path:inset(10% 0 60% 0)}
+  20%{transform:translate(2px,-1px);clip-path:inset(60% 0 5% 0)}
+  30%{transform:translate(-2px,0);clip-path:inset(30% 0 40% 0)}
+  40%{transform:translate(3px,1px);clip-path:inset(5% 0 80% 0)}
+  50%{transform:translate(-1px,-1px);clip-path:inset(70% 0 10% 0)}
+  60%{transform:translate(2px,0);clip-path:inset(20% 0 55% 0)}
+  70%{transform:translate(-3px,1px);clip-path:inset(45% 0 20% 0)}
+  80%{transform:translate(1px,-1px);clip-path:inset(0 0 0 0)}
+  100%{transform:translate(0,0);clip-path:inset(0 0 0 0)}
+}
+.glitching{position:relative; animation:glitchJitter .25s steps(2) 2;}
+.glitching::before,.glitching::after{content:attr(data-text);position:absolute;left:0;top:0;width:100%;height:100%;overflow:hidden;}
+.glitching::before{color:#ff3b6e;mix-blend-mode:screen;animation:glitchJitter .3s steps(2) 2 reverse;z-index:-1;}
+.glitching::after{color:#3bd4ff;mix-blend-mode:screen;animation:glitchJitter .22s steps(2) 2;z-index:-1;}
+
+/* ---- boot screen ---- */
+#boot-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 16px;cursor:pointer;}
+.power2{font-size:14px;letter-spacing:4px;color:var(--green-dim);margin-bottom:6px;}
+.vng-title{font-size:clamp(48px,14vw,120px);letter-spacing:10px;line-height:1;color:var(--green);
+  text-shadow:0 0 6px var(--green),0 0 22px rgba(3,252,15,.6);}
+.subtitle{letter-spacing:6px;color:var(--green-dim);margin-top:18px;font-size:clamp(11px,2vw,16px);}
+.press-start{margin-top:22px;font-weight:bold;letter-spacing:3px;font-size:clamp(14px,2.4vw,18px);}
+.cmdline{margin-top:30px;color:var(--green-dim);font-size:clamp(12px,2vw,16px);}
+.cmdline b{color:var(--green);font-weight:bold;}
+
+/* ---- hide the mountains/grid background decor while loading into or inside a room ---- */
+.bg-decor.decor-hidden{display:none;}
+
+/* ---- room boot (join-room loading) screen ---- */
+#room-boot-screen{min-height:100vh;padding:40px 24px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;
+  background:radial-gradient(ellipse at 50% 0%, rgba(3,252,15,.06), transparent 65%);}
+.bios-lines{white-space:pre-wrap;line-height:1.7;font-size:15px;}
+.bios-lines .joined-ok{color:var(--green);text-shadow:0 0 6px var(--green);margin-top:10px;}
+
+/* ---- room screen (placeholder) ---- */
+#room-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;
+  background:radial-gradient(ellipse at 50% 0%, rgba(3,252,15,.06), transparent 65%);}
+.room-screen-box{max-width:560px;width:100%;}
+.room-placeholder-body{text-align:center;padding:60px 20px;}
+.room-placeholder-text{font-size:18px;letter-spacing:1px;}
+
+/* ---- app shell ---- */
+#app-screen{min-height:100vh;padding:48px 20px 80px;}
+.app-wrap{max-width:1200px;margin:0 5vw;}
+.mini-logo{display:flex;align-items:flex-start;gap:4px;margin-bottom:4px;}
+.mini-vng{font-size:clamp(34px,7vw,52px);letter-spacing:6px;text-shadow:0 0 6px var(--green),0 0 18px rgba(3,252,15,.55);}
+.mini-pow{font-size:14px;color:var(--green-dim);margin-top:-2px;}
+.mini-sub{letter-spacing:4px;color:var(--green-dim);font-size:11px;margin:10px 0 36px;}
+
+.panel{border:2px solid var(--green);margin-bottom:28px;background:var(--panel-bg);box-shadow:0 0 14px rgba(3,252,15,.15);}
+.panel-head{background:var(--green);color:#000;font-weight:bold;letter-spacing:2px;padding:9px 16px;font-size:13px;
+  background-image:repeating-linear-gradient(180deg, rgba(0,0,0,.08) 0px, rgba(0,0,0,.08) 1px, transparent 1px, transparent 3px);}
+.panel-body{padding:20px;}
+
+/* operator */
+.operator-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.operator-id{display:flex;align-items:center;gap:12px;}
+.avatar{width:34px;height:34px;border:1px solid var(--green);display:flex;align-items:center;justify-content:center;font-weight:bold;background:var(--green-faint);flex-shrink:0;}
+.operator-id b{font-size:15px;}
+.operator-actions a{color:var(--green);text-decoration:none;font-weight:bold;letter-spacing:1px;font-size:13px;margin-left:16px;cursor:pointer;}
+.operator-actions a:hover{text-decoration:underline;}
+
+/* menu */
+.menu-item{display:flex;gap:16px;padding:14px 0;border-bottom:1px dashed var(--green-dim);cursor:pointer;}
+.menu-item:last-child{border-bottom:none;}
+.menu-num{width:34px;height:34px;flex-shrink:0;border:1px solid var(--green);display:flex;align-items:center;justify-content:center;font-weight:bold;transition:background-color .15s ease,transform .1s ease;}
+.menu-item:hover .menu-num{background:var(--green-faint);}
+.menu-item:active .menu-num{transform:scale(.94);}
+.menu-title{font-weight:bold;letter-spacing:1px;font-size:15px;}
+.menu-desc{color:var(--green-dim);font-size:12.5px;margin-top:3px;}
+
+/* forms */
+label{display:block;font-size:12px;letter-spacing:1px;color:var(--green-dim);margin:14px 0 6px;}
+input{width:100%;background:#000;border:1px solid var(--green);color:var(--green);padding:10px 12px;font-family:inherit;font-size:14px;}
+input:focus{outline:2px solid var(--green);outline-offset:1px;}
+select{width:100%;background:#000;border:1px solid var(--green-dim);color:var(--green-dim);padding:9px 10px;font-family:inherit;font-size:13px;}
+select[title]{cursor:not-allowed;}
+button{transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .1s ease;}
+button:active:not(:disabled){transform:scale(.96);}
+.btn{margin-top:20px;width:100%;background:var(--green);color:#000;border:none;padding:15px 20px;font-weight:bold;letter-spacing:2px;font-family:inherit;font-size:14px;cursor:pointer;}
+.btn:hover{background:#42ff2a;}
+.btn-outline{background:transparent;border:1px solid var(--green);color:var(--green);}
+.switch-row{margin-top:14px;font-size:12.5px;color:var(--green-dim);}
+.switch-row a{color:var(--green);cursor:pointer;text-decoration:underline;}
+.msg{font-size:12.5px;margin-top:10px;min-height:16px;}
+.msg.err{color:#ff5c5c;}
+.msg.ok{color:var(--green);}
+
+/* room panel */
+.room-code{font-size:22px;letter-spacing:3px;font-weight:bold;margin:10px 0;}
+.room-list{margin-top:14px;}
+.room-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--green-dim);font-size:13px;gap:10px;}
+.room-row-actions{display:flex;gap:8px;flex-shrink:0;}
+.room-row button{background:transparent;border:1px solid var(--green);color:var(--green);padding:7px 16px;font-family:inherit;cursor:pointer;font-size:11.5px;}
+.room-row button:hover{background:var(--green-faint);}
+.room-row button.room-del{border-color:#ff3b6e;color:#ff3b6e;}
+.room-row button.room-del:hover{background:rgba(255,59,110,.15);}
+.empty{color:var(--green-dim);font-size:13px;}
+
+/* ---- background decor: 3D grid + mountains ---- */
+.bg-decor{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;}
+.bg-decor .mountains{position:absolute;left:0;right:0;bottom:28%;height:38%;
+  background:linear-gradient(180deg, transparent 0%, rgba(3,252,15,.10) 100%);
+  clip-path:polygon(0% 100%,0% 62%,7% 78%,15% 42%,23% 70%,32% 22%,41% 60%,50% 12%,59% 56%,68% 30%,77% 64%,86% 20%,94% 52%,100% 36%,100% 100%);
+  filter:drop-shadow(0 0 14px rgba(3,252,15,.22));}
+.bg-decor .grid-floor{position:absolute;left:-60%;right:-60%;bottom:0;height:46%;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(3,252,15,.4) 0, rgba(3,252,15,.4) 1px, transparent 1px, transparent 64px),
+    repeating-linear-gradient(0deg, rgba(3,252,15,.4) 0, rgba(3,252,15,.4) 1px, transparent 1px, transparent 42px);
+  transform:perspective(280px) rotateX(58deg);transform-origin:bottom;
+  -webkit-mask-image:linear-gradient(180deg, transparent 0%, #000 45%);
+  mask-image:linear-gradient(180deg, transparent 0%, #000 45%);}
+
+/* ---- wide layout for post-login screen ---- */
+.narrow{max-width:660px;}
+.main-grid{display:grid;grid-template-columns:minmax(0,620px) minmax(0,580px);gap:28px;align-items:start;}
+.col-left{min-width:0;}
+.col-right{min-width:0;}
+@media (max-width:980px){ .main-grid{grid-template-columns:1fr;} }
+.sound-footer{margin-top:0;}
+
+/* ---- systems panel ---- */
+.radar-row{display:flex;gap:18px;align-items:center;}
+.radar-box{position:relative;width:140px;height:140px;border-radius:50%;flex-shrink:0;overflow:hidden;
+  border:1px solid var(--green-dim);background:radial-gradient(circle, rgba(3,252,15,.06), transparent 70%);
+  transition:border-color .3s,box-shadow .3s;}
+.radar-box::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background-image:
+    repeating-radial-gradient(circle, transparent 0px, transparent 17px, rgba(3,252,15,.2) 18px, transparent 19px),
+    linear-gradient(90deg, transparent 49%, rgba(3,252,15,.2) 50%, transparent 51%),
+    linear-gradient(0deg, transparent 49%, rgba(3,252,15,.2) 50%, transparent 51%);}
+.radar-sweep{position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(3,252,15,.6), rgba(3,252,15,0) 32%);opacity:.22;}
+/* dots are created dynamically in JS, one per open room */
+.radar-blip{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 8px var(--green);transform:translate(-50%,-50%);
+  animation-name:blipPulse;animation-iteration-count:infinite;animation-timing-function:steps(1,jump-end);}
+.radar-box.active{border-color:var(--green);box-shadow:0 0 18px rgba(3,252,15,.55);}
+.radar-box.active .radar-sweep{opacity:1;animation:radarSpin 2.4s linear infinite;}
+@keyframes radarSpin{to{transform:rotate(360deg);}}
+@keyframes radarAlert{0%,100%{box-shadow:0 0 18px rgba(3,252,15,.55)}50%{box-shadow:0 0 38px rgba(3,252,15,1)}}
+.radar-box.radar-alert{animation:radarAlert .3s steps(3) 3;}
+@keyframes blipPulse{0%,49%{opacity:.25}50%,100%{opacity:1}}
+.time-box{flex:1;min-width:110px;}
+.time-label{font-size:11px;color:var(--green-dim);letter-spacing:1px;}
+.time-value{font-size:22px;margin:4px 0 10px;}
+.radar-status{font-size:11px;color:var(--green-dim);letter-spacing:.5px;}
+.radar-box.active ~ .time-box .radar-status{color:var(--green);}
+
+.sys-icons{display:flex;gap:10px;margin-top:20px;}
+.sys-icon{flex:1;border:1px solid var(--green);padding:18px 6px;text-align:center;cursor:pointer;background:var(--panel-bg);transition:background-color .15s ease,transform .1s ease;}
+.sys-icon:active{transform:scale(.96);}
+.sys-icon:hover{background:var(--green-faint);}
+.sys-icon-glyph{font-size:22px;margin-bottom:6px;}
+.sys-icon-label{font-size:11px;letter-spacing:.5px;}
+
+/* ---- sound visualizer: plain moving bars, purely decorative ---- */
+.sound-vis{display:flex;align-items:flex-end;gap:4px;height:40px;}
+.sound-bar{flex:1 1 auto;max-width:9px;min-width:3px;height:100%;background:var(--green);opacity:.75;transform-origin:bottom;
+  animation-name:barPulse;animation-iteration-count:infinite;animation-timing-function:ease-in-out;animation-direction:alternate;}
+@keyframes barPulse{
+  0%{transform:scaleY(var(--h1,.25))}
+  100%{transform:scaleY(var(--h2,.7))}
+}
+
+@media (max-width:420px){ .radar-box{width:90px;height:90px;} }
+
+/* ---- modal (mail / files / credits) ---- */
+.modal-overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.78);
+  display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal-box{max-width:480px;width:100%;max-height:82vh;overflow:auto;margin-bottom:0;}
+.modal-head{display:flex;justify-content:space-between;align-items:center;}
+.modal-x{cursor:pointer;padding:4px 10px;}
+.modal-x:hover{text-decoration:underline;}
+
+.mail-row{padding:9px 0;border-bottom:1px dashed var(--green-dim);font-size:12.5px;}
+.mail-row .mail-time{color:var(--green-dim);font-size:11px;margin-bottom:3px;}
+
+.file-drop{border:1px dashed var(--green);padding:18px 10px;text-align:center;cursor:pointer;margin-bottom:14px;font-size:12px;}
+.file-drop.dragover{background:var(--green-faint);}
+.file-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px dashed var(--green-dim);font-size:12.5px;}
+.file-row .file-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+.file-row .file-actions button{background:transparent;border:1px solid var(--green);color:var(--green);padding:6px 14px;font-family:inherit;cursor:pointer;font-size:11px;margin-left:6px;}
+.file-row .file-actions button:hover{background:var(--green-faint);}
+.credits-body p{margin:0 0 12px;font-size:13px;line-height:1.5;}
+
+/* ---- toast ---- */
+.toast{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:600;
+  background:#000;border:1px solid var(--green);color:var(--green);padding:12px 22px;
+  font-family:"Tiny5",monospace;letter-spacing:1px;box-shadow:0 0 14px rgba(3,252,15,.45);
+  opacity:0;pointer-events:none;transition:opacity .35s;text-align:center;}
+.toast.show{opacity:1;}
+
+/* ================= ROOM SCREEN (fits one viewport, no page scroll on desktop) ================= */
+#room-screen{height:100vh;height:100dvh;overflow:hidden;box-sizing:border-box;display:flex;flex-direction:column;}
+.room-wrap{flex:1;min-height:0;display:flex;flex-direction:column;max-width:1600px;width:100%;
+  margin:0 auto;padding:14px 20px 16px;box-sizing:border-box;}
+.room-topbar{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;
+  padding:10px 16px;margin-bottom:12px;border:2px solid var(--green);background:var(--panel-bg);
+  box-shadow:0 0 14px rgba(3,252,15,.15);letter-spacing:1px;}
+.room-leave-btn{background:transparent;border:1px solid #ff3b6e;color:#ff3b6e;padding:8px 16px;font-family:inherit;cursor:pointer;
+  box-shadow:0 3px 0 0 currentColor,0 4px 7px rgba(0,0,0,.4);}
+.room-leave-btn:hover{background:rgba(255,59,110,.15);}
+.room-leave-btn:active{box-shadow:0 1px 0 0 currentColor,0 2px 4px rgba(0,0,0,.4);transform:translateY(2px);}
+
+.room-grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(220px,280px) minmax(320px,1fr) minmax(320px,440px);
+  gap:16px;align-items:stretch;}
+.room-grid>.panel,.room-grid>.room-col-right{height:100%;min-height:0;margin-bottom:0;}
+.room-grid .panel{display:flex;flex-direction:column;}
+@media (max-width:1100px){
+  #room-screen{height:auto;overflow:visible;}
+  .room-grid{grid-template-columns:1fr;}
+  .room-grid>.panel,.room-grid>.room-col-right{height:auto;}
+}
+
+.panel-head-flex{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-shrink:0;}
+.panel-head-title{flex:1;text-align:center;}
+.panel-head-ctrl{opacity:.75;font-size:11px;}
+.room-panel-foot{flex-shrink:0;padding:10px 16px;border-top:1px dashed var(--green-dim);font-size:11px;color:var(--green-dim);}
+
+.players-panel .panel-body{flex:1;min-height:0;overflow-y:auto;padding:16px;}
+.player-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--green-dim);font-size:13px;}
+.player-row button{background:transparent;border:1px solid var(--green-dim);color:var(--green-dim);padding:3px 8px;font-family:inherit;cursor:pointer;font-size:12px;
+  box-shadow:0 2px 0 0 currentColor;}
+.player-row button:hover{background:var(--green-faint);color:var(--green);border-color:var(--green);}
+.player-row button:active{box-shadow:0 1px 0 0 currentColor;transform:translateY(1px);}
+
+.sheets-panel .panel-body{flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;}
+.sheets-empty-box{border:1px solid var(--green-dim);padding:22px 18px;text-align:center;}
+.sheets-empty-text{margin-bottom:0;color:var(--green-dim);}
+.btn-outline-sm{background:transparent;border:1px solid var(--green-dim);color:var(--green-dim);padding:8px 14px;font-family:inherit;cursor:pointer;}
+.btn-outline-sm:hover{border-color:var(--green);color:var(--green);background:var(--green-faint);}
+.btn-outline-sm:disabled{cursor:not-allowed;}
+.btn-outline-sm:disabled:hover{border-color:var(--green-dim);color:var(--green-dim);background:transparent;}
+
+/* ---- NPC sheet creation / display ---- */
+.modal-box.modal-wide{max-width:760px;}
+.npc-form-grid{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:start;margin-bottom:18px;}
+@media (max-width:620px){ .npc-form-grid{grid-template-columns:1fr;} }
+.npc-portrait-wrap{position:relative;width:100%;max-width:200px;aspect-ratio:1/1;border:1px solid var(--green-dim);
+  background:#000 center/cover no-repeat;cursor:pointer;overflow:hidden;}
+.npc-avatar-box{position:absolute;inset:14px;border:2px solid var(--green);background:rgba(0,0,0,.6);
+  display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;cursor:pointer;}
+.npc-avatar-box img{width:100%;height:100%;object-fit:cover;}
+.npc-avatar-placeholder{font-size:10.5px;letter-spacing:1px;padding:0 6px;}
+.npc-portrait-hint{font-size:10px;color:var(--green-dim);margin-top:8px;line-height:1.5;max-width:200px;}
+.npc-level-box{margin-bottom:14px;}
+textarea{width:100%;background:#000;border:1px solid var(--green);color:var(--green);padding:10px 12px;
+  font-family:inherit;font-size:13px;resize:vertical;min-height:56px;}
+textarea:focus{outline:2px solid var(--green);outline-offset:1px;}
+.npc-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;}
+@media (max-width:460px){ .npc-stats-grid{grid-template-columns:repeat(2,1fr);} }
+.npc-stat-box{border:1px solid var(--green-dim);padding:10px 8px;text-align:center;}
+.npc-stat-name{width:100%;background:transparent;border:none;border-bottom:1px dashed var(--green-dim);color:var(--green);
+  text-align:center;font-family:inherit;font-size:11px;padding:3px 2px;margin-bottom:8px;}
+.npc-stat-name:focus{outline:none;border-bottom-color:var(--green);}
+.npc-stat-value{width:40px;height:40px;border-radius:50%;border:1px solid var(--green);margin:0 auto 8px;
+  display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:bold;}
+.npc-stat-btns{display:flex;justify-content:space-between;gap:6px;}
+.npc-stat-btns button{flex:1;background:transparent;border:1px solid var(--green);color:var(--green);
+  font-family:inherit;cursor:pointer;padding:4px 0;font-size:13px;}
+.npc-stat-btns button:hover{background:var(--green-faint);}
+.npc-stat-remove{font-size:10px;color:var(--green-dim);cursor:pointer;margin-top:6px;text-decoration:underline;}
+.npc-add-stat-btn{margin-top:4px;}
+.npc-sheet-card{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--green-dim);cursor:pointer;}
+.npc-sheet-card:hover{background:var(--green-faint);}
+.npc-sheet-thumb{width:40px;height:40px;border:1px solid var(--green);flex-shrink:0;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;font-size:10px;}
+.npc-sheet-thumb img{width:100%;height:100%;object-fit:cover;}
+.npc-sheet-meta{min-width:0;flex:1;}
+.npc-sheet-name{font-weight:bold;font-size:13px;}
+.npc-sheet-sub{font-size:11px;color:var(--green-dim);}
+.npc-sheet-del{background:transparent;border:1px solid #ff3b6e;color:#ff3b6e;font-family:inherit;cursor:pointer;
+  padding:4px 10px;font-size:11px;flex-shrink:0;}
+.npc-sheet-del:hover{background:rgba(255,59,110,.15);}
+.npc-view-level{border:1px solid var(--green-dim);padding:8px 10px;margin-bottom:10px;font-size:12.5px;white-space:pre-wrap;}
+.npc-view-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
+.npc-view-stat{border:1px solid var(--green-dim);padding:8px;text-align:center;font-size:11px;}
+.npc-view-stat b{display:block;font-size:16px;margin-top:4px;}
+
+.room-col-right{display:flex;flex-direction:column;gap:14px;}
+.chat-panel{flex:1 1 52%;min-height:0;}
+.dice-panel{flex:1 1 48%;min-height:0;overflow-y:auto;}
+.chat-tabs{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:7px 16px;border-bottom:1px dashed var(--green-dim);font-size:11px;flex-wrap:wrap;gap:8px;}
+.chat-tabs-label{color:var(--green-dim);letter-spacing:1px;}
+.chat-tab-group{display:flex;gap:6px;}
+.chat-tab{background:transparent;border:1px solid var(--green-dim);color:var(--green-dim);padding:4px 10px;font-family:inherit;cursor:pointer;font-size:11px;
+  box-shadow:0 2px 0 0 currentColor;}
+.chat-tab.active{border-color:var(--green);color:var(--green);background:var(--green-faint);}
+.chat-tab:active{box-shadow:0 1px 0 0 currentColor;transform:translateY(1px);}
+.chat-feed{flex:1;min-height:0;overflow-y:auto;padding:10px 16px;font-size:13px;display:flex;flex-direction:column;gap:7px;}
+.chat-line{line-height:1.4;color:var(--green);}
+.chat-line .chat-name{color:var(--green);font-weight:bold;}
+.chat-line.roll{color:var(--green);}
+.chat-line.system{color:var(--green);}
+.chat-input-row{flex-shrink:0;display:flex;gap:8px;padding:8px 16px;border-top:1px dashed var(--green-dim);}
+.chat-input-row input{flex:1;}
+.chat-input-row button{background:transparent;border:1px solid var(--green);color:var(--green);padding:9px 14px;font-family:inherit;cursor:pointer;white-space:nowrap;
+  box-shadow:0 3px 0 0 currentColor,0 4px 6px rgba(0,0,0,.35);}
+.chat-input-row button:hover{background:var(--green-faint);}
+.chat-input-row button:active{box-shadow:0 1px 0 0 currentColor,0 2px 3px rgba(0,0,0,.35);transform:translateY(2px);}
+
+.roll-result-box{margin:10px 14px;padding:12px 10px;border:1px dashed var(--green-dim);text-align:center;
+  color:var(--green-dim);letter-spacing:1px;font-size:15px;min-height:92px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;position:relative;overflow:hidden;
+  transition:border-color .15s,color .15s;}
+@keyframes rollBlink{0%,100%{background:transparent;color:var(--green-dim);border-color:var(--green-dim)}50%{background:var(--green);color:#000;border-color:var(--green)}}
+.roll-result-box.roll-blink{animation:rollBlink .15s steps(1) 6;border-style:solid;}
+.roll-result-box.rolling{border-style:solid;color:var(--green);border-color:var(--green);}
+
+/* chaotic shake, dialed back to a controlled rattle rather than a violent jolt */
+@keyframes chaosShake{
+  0%{transform:translate(0,0) rotate(0deg)}
+  8%{transform:translate(-3px,2px) rotate(-1.5deg)}
+  16%{transform:translate(3px,-3px) rotate(1deg)}
+  24%{transform:translate(-4px,1px) rotate(-2deg)}
+  32%{transform:translate(3px,3px) rotate(1.5deg)}
+  40%{transform:translate(-2px,-3px) rotate(-1deg)}
+  48%{transform:translate(4px,-1px) rotate(2deg)}
+  56%{transform:translate(-3px,2px) rotate(-1.5deg)}
+  64%{transform:translate(2px,-2px) rotate(1deg)}
+  72%{transform:translate(-4px,-1px) rotate(-2deg)}
+  80%{transform:translate(3px,2px) rotate(1.5deg)}
+  88%{transform:translate(-2px,-3px) rotate(-1deg)}
+  96%{transform:translate(3px,1px) rotate(1deg)}
+  100%{transform:translate(0,0) rotate(0deg)}
+}
+.roll-result-box.rolling{animation:chaosShake .16s steps(1) infinite;}
+
+/* strobing flash layer toggled randomly from JS during the roll */
+.roll-result-box.strobe-white{background:#fff !important;color:#000 !important;border-color:#fff !important;}
+.roll-result-box.strobe-red{background:#ff1a3c !important;color:#fff !important;border-color:#ff1a3c !important;}
+
+/* impact punch the instant it settles on a result */
+@keyframes impactPunch{0%{transform:scale(1.18)}55%{transform:scale(.95)}100%{transform:scale(1)}}
+.roll-result-box.impact{animation:impactPunch .22s steps(3);}
+
+/* crit shake on the whole dice panel when a 1 or the max is rolled */
+@keyframes panelCritShake{
+  0%,100%{transform:translate(0,0)}
+  20%{transform:translate(-3px,2px)}
+  40%{transform:translate(3px,-2px)}
+  60%{transform:translate(-2px,-2px)}
+  80%{transform:translate(2px,2px)}
+}
+.dice-panel.crit-shake{animation:panelCritShake .08s steps(1) 4;}
+
+/* the shape (triangle/square/pentagon/hexagon/.../circle/infinity) spins for the
+   full roll duration — its corner count matches the selected die's name */
+.roll-shape-anim{width:56px;height:56px;color:var(--green);}
+.roll-shape-anim svg{width:100%;height:100%;}
+.roll-result-box.rolling .roll-shape-anim{animation:chaosSpin 2s steps(14);}
+@keyframes chaosSpin{to{transform:rotate(1440deg);}}
+.roll-shape-number{margin-top:6px;font-size:17px;color:var(--green);}
+.roll-result-box.rolling .roll-shape-number{animation:numJitter .14s steps(1) infinite;}
+@keyframes numJitter{
+  0%{transform:translate(0,0) scale(1)}
+  25%{transform:translate(.5px,-.5px) scale(1.04)}
+  50%{transform:translate(-.5px,.5px) scale(.98)}
+  75%{transform:translate(.5px,.5px) scale(1.02)}
+  100%{transform:translate(-.5px,-.5px) scale(1)}
+}
+
+.dice-grid{flex-shrink:0;display:grid;grid-template-columns:repeat(4,1fr);gap:9px 6px;padding:0 14px;}
+.die-btn{background:var(--panel-bg);border:1px solid var(--green-dim);color:var(--green-dim);
+  padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;
+  box-shadow:0 3px 0 0 currentColor;}
+.die-btn:hover{border-color:var(--green);color:var(--green);}
+.die-btn.active{border-color:var(--green);color:var(--green);background:var(--green-faint);}
+.die-btn:active{box-shadow:0 1px 0 0 currentColor;transform:translateY(2px);}
+.die-icon{width:20px;height:20px;}
+.die-icon svg{width:100%;height:100%;}
+.die-label{font-size:10.5px;letter-spacing:.5px;}
+.die-btn.active .die-label::before{content:'▸ ';}
+.die-btn.active .die-label::after{content:' ◂';}
+@keyframes dieSpin{to{transform:rotate(360deg);}}
+.die-btn.rolling .die-icon{animation:dieSpin .45s steps(8) 1;}
+.dice-count-row{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:10px 14px 0;font-size:12px;}
+.dice-count-row input{width:60px;text-align:center;}
+.dice-opts-row{flex-shrink:0;display:flex;gap:12px;padding:10px 14px;flex-wrap:wrap;}
+.dice-opt{flex:1;min-width:140px;}
+.dice-opt-label{font-size:10.5px;color:var(--green-dim);margin-bottom:4px;letter-spacing:.5px;}
+.dice-summary{flex-shrink:0;padding:8px 14px;border-top:1px dashed var(--green-dim);border-bottom:1px dashed var(--green-dim);font-size:12.5px;}
+.roll-btn{flex-shrink:0;margin:10px 14px 14px;width:calc(100% - 28px);
+  box-shadow:0 4px 0 0 var(--green-dim),0 6px 10px rgba(0,0,0,.45);}
+.roll-btn:active:not(:disabled){box-shadow:0 1px 0 0 var(--green-dim),0 2px 4px rgba(0,0,0,.45);transform:translateY(3px);}
+.roll-btn:disabled{background:var(--green-dim);color:#000;cursor:default;opacity:.7;box-shadow:0 2px 0 0 #063d08;}
+</style>
+</head>
+<body>
+
+<div class="bg-decor"><div class="mountains"></div><div class="grid-floor"></div></div>
+
+<div id="boot-screen" class="flicker">
+  <div class="power2 px-font">²</div>
+  <div class="vng-title logo-font glitch-target">VNG</div>
+  <div class="subtitle px-font">TABLETOP RPG TERMINAL</div>
+  <div class="press-start px-font"><span class="blinker">►</span> PRESS START <span class="blinker">◄</span></div>
+  <div class="cmdline">C:\VNG&gt; <span id="boot-cmd"></span><span class="caret" id="boot-caret"></span></div>
+</div>
+
+<div id="app-screen" class="hidden">
+  <div class="app-wrap">
+   <div class="narrow">
+    <div class="mini-logo">
+      <div class="mini-vng logo-font glitch-target">VNG</div>
+      <div class="mini-pow px-font">²</div>
+    </div>
+    <div class="mini-sub px-font">TABLETOP RPG TERMINAL</div>
+
+    <!-- AUTH -->
+    <div id="auth-panel" class="panel">
+      <div class="panel-head px-font glitch-target">■ ДОСТУП</div>
+      <div class="panel-body">
+        <div id="login-form">
+          <label class="px-font">EMAIL ИЛИ ИМЯ</label>
+          <input id="login-id" type="text" autocomplete="username">
+          <label class="px-font">ПАРОЛЬ</label>
+          <input id="login-pass" type="password" autocomplete="current-password">
+          <button class="btn px-font" onclick="doLogin()">ВОЙТИ</button>
+          <div class="msg" id="login-msg"></div>
+          <div class="switch-row">Нет аккаунта? <a onclick="showRegister()">Зарегистрироваться</a></div>
+        </div>
+        <div id="register-form" class="hidden">
+          <label class="px-font">EMAIL</label>
+          <input id="reg-email" type="email" autocomplete="email">
+          <label class="px-font">ИМЯ ОПЕРАТОРА</label>
+          <input id="reg-name" type="text" autocomplete="nickname">
+          <label class="px-font">ПАРОЛЬ</label>
+          <input id="reg-pass" type="password" autocomplete="new-password">
+          <button class="btn px-font" onclick="doRegister()">СОЗДАТЬ АККАУНТ</button>
+          <div class="msg" id="reg-msg"></div>
+          <div class="switch-row">Уже есть аккаунт? <a onclick="showLogin()">Войти</a></div>
+        </div>
+      </div>
+    </div>
+   </div>
+
+    <!-- OPERATOR + MENU (shown after login) -->
+    <div id="main-area" class="hidden">
+     <div class="main-grid">
+      <div class="col-left">
+      <div class="panel">
+        <div class="panel-head px-font glitch-target">■ ОПЕРАТОР</div>
+        <div class="panel-body operator-row">
+          <div class="operator-id">
+            <div class="avatar px-font" id="op-avatar">?</div>
+            <b id="op-name">—</b>
+          </div>
+          <div class="operator-actions"><a onclick="doLogout()">ВЫЙТИ</a></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head px-font glitch-target">■ ГЛАВНОЕ МЕНЮ</div>
+        <div class="panel-body">
+          <div class="menu-item" onclick="openCreate()">
+            <div class="menu-num px-font">1</div>
+            <div><div class="menu-title px-font">СОЗДАТЬ КОМНАТУ</div><div class="menu-desc">Я гейм-мастер: открыть новую сессию</div></div>
+          </div>
+          <div class="menu-item" onclick="openJoin()">
+            <div class="menu-num px-font">2</div>
+            <div><div class="menu-title px-font">ВОЙТИ В КОМНАТУ</div><div class="menu-desc">Выбрать из списка открытых сессий</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="create-panel" class="panel hidden">
+        <div class="panel-head px-font glitch-target">■ НОВАЯ КОМНАТА</div>
+        <div class="panel-body">
+          <div class="menu-desc">Код комнаты для твоих игроков:</div>
+          <div class="room-code px-font" id="new-code">——————</div>
+          <button class="btn px-font" onclick="generateRoom()">СГЕНЕРИРОВАТЬ КОД</button>
+          <button class="btn btn-outline px-font hidden" id="enter-created-room-btn" onclick="enterRoom(lastCreatedRoomCode)">ВОЙТИ В КОМНАТУ</button>
+        </div>
+      </div>
+
+      <div id="join-panel" class="panel hidden">
+        <div class="panel-head px-font glitch-target">■ ОТКРЫТЫЕ СЕССИИ</div>
+        <div class="panel-body">
+          <label class="px-font">КОД КОМНАТЫ</label>
+          <input id="join-code" type="text" maxlength="6" style="text-transform:uppercase">
+          <button class="btn btn-outline px-font" onclick="joinByCode()">ПОДКЛЮЧИТЬСЯ</button>
+          <div class="msg" id="join-msg"></div>
+          <div class="room-list" id="room-list"></div>
+        </div>
+      </div>
+      </div><!-- /col-left -->
+
+      <div class="col-right">
+        <div class="panel sys-panel">
+          <div class="panel-head px-font glitch-target">■ СИСТЕМЫ</div>
+          <div class="panel-body">
+            <div class="radar-row">
+              <div class="radar-box" id="radar-box">
+                <div class="radar-sweep"></div>
+              </div>
+              <div class="time-box">
+                <div class="time-label px-font">ВРЕМЯ В ИГРЕ</div>
+                <div class="time-value px-font" id="game-time">00:00:00</div>
+                <div class="radar-status px-font" id="radar-status">ОЖИДАНИЕ СИГНАЛА</div>
+              </div>
+            </div>
+            <div class="sys-icons">
+              <div class="sys-icon" onclick="openModal('mail')">
+                <div class="sys-icon-glyph">✉</div><div class="sys-icon-label px-font">6 · ПОЧТА</div>
+              </div>
+              <div class="sys-icon" onclick="openModal('files')">
+                <div class="sys-icon-glyph">▤</div><div class="sys-icon-label px-font">7 · ФАЙЛЫ</div>
+              </div>
+              <div class="sys-icon" onclick="openModal('credits')">
+                <div class="sys-icon-glyph">&lt;/&gt;</div><div class="sys-icon-label px-font">8 · АВТОРЫ</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /col-right -->
+
+     </div><!-- /main-grid -->
+
+      <div class="panel sound-footer">
+        <div class="panel-head px-font glitch-target">■ АУДИО МОНИТОР</div>
+        <div class="panel-body">
+          <div class="sound-vis" id="sound-vis"></div>
+        </div>
+      </div>
+    </div><!-- /main-area -->
+  </div>
+</div>
+
+<!-- ROOM BOOT (join loading) -->
+<div id="room-boot-screen" class="hidden flicker">
+  <div class="bios-lines px-font" id="room-boot-lines"></div>
+</div>
+
+<!-- ROOM -->
+<div id="room-screen" class="hidden">
+  <div class="room-wrap">
+    <div class="room-topbar px-font">
+      <span>■ КОМНАТА <span id="room-screen-code"></span></span>
+      <button class="room-leave-btn px-font" onclick="leaveRoomPlaceholder()">[ ВЫЙТИ ИЗ КОМНАТЫ ]</button>
+    </div>
+
+    <div class="room-grid">
+
+      <div class="panel players-panel">
+        <div class="panel-head panel-head-flex px-font"><span class="panel-head-ctrl">[×]</span><span class="panel-head-title glitch-target">ИГРОКИ</span><span class="panel-head-ctrl">[↑]</span></div>
+        <div class="panel-body" id="players-list"><div class="empty">Пока никого нет</div></div>
+        <div class="room-panel-foot">
+          <div class="px-font">🔔 Кнопка у игрока — звуковой сигнал выбранному игроку.</div>
+          <div class="px-font">♛ <span class="glitch-target">ANI</span></div>
+        </div>
+      </div>
+
+      <div class="panel sheets-panel">
+        <div class="panel-head panel-head-flex px-font"><span class="panel-head-ctrl">[×]</span><span class="panel-head-title glitch-target">ЛИСТЫ ИГРОКОВ</span><span class="panel-head-ctrl">[↑]</span></div>
+        <div class="panel-body">
+          <div id="npc-sheets-list" class="hidden"></div>
+          <div class="sheets-empty-box" id="sheets-empty-box">
+            <div class="sheets-empty-text">Пока нет листов игроков. Создайте лист НПС вручную.</div>
+          </div>
+          <button class="btn-outline-sm px-font" id="create-npc-btn" style="margin-top:14px;" onclick="openNpcSheetModal()">[ СОЗДАТЬ ЛИСТ НПС ]</button>
+        </div>
+        <div class="room-panel-foot" style="text-align:right;">
+          <button class="btn-outline-sm px-font" disabled title="Скоро">[ УПРАВЛЕНИЕ ИГРОКАМИ ]</button>
+        </div>
+      </div>
+
+      <div class="room-col-right">
+        <div class="panel chat-panel">
+          <div class="panel-head panel-head-flex px-font"><span class="panel-head-ctrl">[×]</span><span class="panel-head-title glitch-target">ЧАТ И БРОСКИ</span><span class="panel-head-ctrl">[↑]</span></div>
+          <div class="chat-tabs px-font">
+            <span class="chat-tabs-label">■ — ЛЕНТА —</span>
+            <span class="chat-tab-group">
+              <button class="chat-tab active" data-filter="all" onclick="setChatFilter('all')">ВСЕ</button>
+              <button class="chat-tab" data-filter="roll" onclick="setChatFilter('roll')">БРОСКИ</button>
+              <button class="chat-tab" data-filter="chat" onclick="setChatFilter('chat')">ЧАТ</button>
+            </span>
+          </div>
+          <div class="chat-feed" id="chat-feed"><div class="chat-line system">Лента пуста — бросьте куб или напишите в чат</div></div>
+          <div class="chat-input-row">
+            <input type="text" id="chat-input" placeholder="сообщение в чат…" onkeydown="if(event.key==='Enter')sendChatMessage()">
+            <button class="px-font" onclick="sendChatMessage()">[ ОТПРАВИТЬ ]</button>
+          </div>
+        </div>
+
+        <div class="panel dice-panel">
+          <div class="panel-head panel-head-flex px-font"><span class="panel-head-ctrl">[×]</span><span class="panel-head-title glitch-target">КУБЫ</span><span class="panel-head-ctrl">[↑]</span></div>
+          <div class="roll-result-box px-font" id="roll-result-box">ЗДЕСЬ ПОКАЖЕТСЯ БРОСОК</div>
+          <div class="dice-grid" id="dice-grid"></div>
+          <div class="dice-count-row px-font">
+            <span>КОЛ-ВО (МАКС. 10)</span>
+            <input type="number" id="dice-count" value="1" min="1" max="10" oninput="updateDiceSummary()">
+          </div>
+          <div class="dice-opts-row px-font">
+            <div class="dice-opt">
+              <div class="dice-opt-label">СКЕЙЛ ОТ СТАТА</div>
+              <select id="dice-scale" title="Скоро — появится вместе с листами персонажей"><option>Без скейла</option></select>
+            </div>
+            <div class="dice-opt">
+              <div class="dice-opt-label">АВТО-РЕЖИМ ЗАКЛИНАНИЯ</div>
+              <select id="dice-spellmode" title="Скоро — появится вместе с листами персонажей"><option>Уровень 1-7</option></select>
+            </div>
+          </div>
+          <div class="dice-summary px-font" id="dice-summary">1d20 | способность: выкл</div>
+          <button class="btn roll-btn px-font" onclick="rollDice()">[ БРОСИТЬ ]</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="panel modal-box" id="modal-box">
+    <div class="panel-head px-font modal-head"><span id="modal-title">■</span><span class="modal-x px-font" onclick="closeModal()">[ X ]</span></div>
+    <div class="panel-body modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast px-font" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+// ---------- Firebase (shared, cross-device room list + live radar) ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyAa14gFuiq0GX6IazWrIGpg9qg9GyubJlo",
+  authDomain: "vngtheproject.firebaseapp.com",
+  databaseURL: "https://vngtheproject-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "vngtheproject",
+  storageBucket: "vngtheproject.firebasestorage.app",
+  messagingSenderId: "845568975760",
+  appId: "1:845568975760:web:3028e53bacc84249398915"
+};
+let roomsRef = null;          // stays null if the SDK failed to load (offline, blocked, etc.)
+let currentRooms = {};        // local cache, kept in sync by the listener below
+let roomsSyncReady = false;   // true once the first snapshot has loaded
+try{
+  if(typeof firebase==='undefined') throw new Error('Firebase SDK did not load (offline, blocked by an ad-blocker/firewall, or gstatic.com unreachable)');
+  firebase.initializeApp(firebaseConfig);
+  roomsRef = firebase.database().ref('rooms');
+}catch(err){
+  // Don't let a failed network/SDK load take down the whole page — the rest of the
+  // terminal (login, menu, etc.) should still work; only the room/radar sync is affected.
+  console.error('Firebase unavailable, room sync disabled:',err);
+}
+
+// ---------- glitch system ----------
+function prepGlitch(){
+  document.querySelectorAll('.glitch-target').forEach(el=>{
+    if(!el.getAttribute('data-text')) el.setAttribute('data-text', el.textContent);
+  });
+}
+function randomGlitch(root){
+  const targets=(root||document).querySelectorAll('.glitch-target');
+  if(!targets.length) return;
+  const el=targets[Math.floor(Math.random()*targets.length)];
+  el.classList.add('glitching');
+  setTimeout(()=>el.classList.remove('glitching'),260);
+}
+prepGlitch();
+setInterval(()=>randomGlitch(document),1700+Math.random()*2200);
+
+// ---------- boot sequence (choppy, non-linear typing) ----------
+const bootCmdEl=document.getElementById('boot-cmd');
+const bootText="connect OK";
+function typeBoot(){
+  let i=0;
+  function step(){
+    bootCmdEl.textContent=bootText.slice(0,i);
+    i++;
+    if(i>bootText.length){ randomGlitch(document); return; }
+    setTimeout(step, 40+Math.random()*160);
+  }
+  step();
+}
+setTimeout(typeBoot,600);
+
+document.getElementById('boot-screen').addEventListener('click',enterApp);
+window.addEventListener('keydown',e=>{ if(!document.getElementById('boot-screen').classList.contains('hidden')) enterApp(); });
+
+function enterApp(){
+  document.getElementById('boot-screen').classList.add('hidden');
+  const app=document.getElementById('app-screen');
+  app.classList.remove('hidden');
+  app.classList.add('crt-on');
+  prepGlitch();
+  randomGlitch(document);
+  refreshAuthState();
+}
+function snapOpen(panel){
+  panel.classList.remove('hidden');
+  panel.classList.add('crt-on');
+  setTimeout(()=>panel.classList.remove('crt-on'),500);
+}
+
+// ---------- storage helpers (accounts stay local to this browser for now) ----------
+const USERS_KEY='vng_users', SESSION_KEY='vng_session';
+function getUsers(){ try{return JSON.parse(localStorage.getItem(USERS_KEY))||{};}catch(e){return {};} }
+function saveUsers(u){ try{localStorage.setItem(USERS_KEY,JSON.stringify(u));}catch(e){} }
+function getSession(){ try{return localStorage.getItem(SESSION_KEY);}catch(e){return null;} }
+
+// ---------- auth UI ----------
+function showRegister(){ document.getElementById('login-form').classList.add('hidden'); document.getElementById('register-form').classList.remove('hidden'); }
+function showLogin(){ document.getElementById('register-form').classList.add('hidden'); document.getElementById('login-form').classList.remove('hidden'); }
+
+function doRegister(){
+  const email=document.getElementById('reg-email').value.trim().toLowerCase();
+  const name=document.getElementById('reg-name').value.trim();
+  const pass=document.getElementById('reg-pass').value;
+  const msg=document.getElementById('reg-msg');
+  if(!email || !email.includes('@')){ msg.textContent='Введите корректный email.'; msg.className='msg err'; return; }
+  if(!name){ msg.textContent='Укажите имя оператора.'; msg.className='msg err'; return; }
+  if(pass.length<4){ msg.textContent='Пароль минимум 4 символа.'; msg.className='msg err'; return; }
+  const users=getUsers();
+  if(users[email]){ msg.textContent='Этот email уже зарегистрирован.'; msg.className='msg err'; return; }
+  users[email]={name:name,pass:pass};
+  saveUsers(users);
+  try{localStorage.setItem(SESSION_KEY,email);}catch(e){}
+  msg.textContent='Аккаунт создан. Подключение...'; msg.className='msg ok';
+  showToast('Добро пожаловать в VNG');
+  addNotification('Добро пожаловать в VNG');
+  setTimeout(refreshAuthState,400);
+}
+
+function doLogin(){
+  const idRaw=document.getElementById('login-id').value.trim().toLowerCase();
+  const pass=document.getElementById('login-pass').value;
+  const msg=document.getElementById('login-msg');
+  const users=getUsers();
+  let email=idRaw;
+  if(!users[email]){
+    email=Object.keys(users).find(k=>users[k].name.toLowerCase()===idRaw);
+  }
+  if(!email || !users[email] || users[email].pass!==pass){
+    msg.textContent='Неверный логин или пароль.'; msg.className='msg err'; return;
+  }
+  try{localStorage.setItem(SESSION_KEY,email);}catch(e){}
+  msg.textContent=''; 
+  showToast('Добро пожаловать в VNG');
+  addNotification('Добро пожаловать в VNG');
+  refreshAuthState();
+}
+
+function doLogout(){
+  try{localStorage.removeItem(SESSION_KEY);}catch(e){}
+  document.getElementById('create-panel').classList.add('hidden');
+  document.getElementById('join-panel').classList.add('hidden');
+  stopGameTimer();
+  refreshAuthState();
+}
+
+function refreshAuthState(){
+  const email=getSession();
+  const users=getUsers();
+  const authPanel=document.getElementById('auth-panel');
+  const mainArea=document.getElementById('main-area');
+  if(email && users[email]){
+    authPanel.classList.add('hidden');
+    snapOpen(mainArea);
+    document.getElementById('op-name').textContent=users[email].name.toUpperCase();
+    document.getElementById('op-avatar').textContent=users[email].name.charAt(0).toUpperCase();
+    renderRooms();
+    renderRadarDots();
+    startGameTimer();
+    buildSoundVis();
+    if(!roomsRef) showToast('Нет связи с сервером комнат');
+  } else {
+    snapOpen(authPanel);
+    mainArea.classList.add('hidden');
+  }
+}
+
+// ---------- rooms ----------
+function openCreate(){
+  const panel=document.getElementById('create-panel');
+  if(!panel.classList.contains('hidden')){ panel.classList.add('hidden'); return; } // 2nd click closes it
+  document.getElementById('join-panel').classList.add('hidden');
+  snapOpen(panel);
+}
+function openJoin(){
+  const panel=document.getElementById('join-panel');
+  if(!panel.classList.contains('hidden')){ panel.classList.add('hidden'); return; } // 2nd click closes it
+  document.getElementById('create-panel').classList.add('hidden');
+  snapOpen(panel);
+  renderRooms();
+}
+function roomsArray(){
+  return Object.keys(currentRooms)
+    .map(code=>Object.assign({code:code}, currentRooms[code]))
+    .sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+}
+let lastCreatedRoomCode=null;
+function generateRoom(){
+  const codeEl=document.getElementById('new-code');
+  const enterBtn=document.getElementById('enter-created-room-btn');
+  if(enterBtn) enterBtn.classList.add('hidden');
+  if(!roomsRef){ codeEl.textContent='НЕТ СВЯЗИ С СЕРВЕРОМ'; return; }
+  const code=Math.random().toString(36).slice(2,8).toUpperCase();
+  const email=getSession();
+  const users=getUsers();
+  codeEl.textContent='ОТПРАВКА...';
+  roomsRef.child(code).set({
+    host: users[email]?users[email].name:'???',
+    ownerEmail: email||null,
+    createdAt: Date.now()
+  }).then(()=>{
+    codeEl.textContent=code;
+    lastCreatedRoomCode=code;
+    if(enterBtn) enterBtn.classList.remove('hidden');
+    flashRadar();
+    renderRadarDots('СЕРВЕР РАЗВЁРНУТ · '+code); // the live listener will refresh this with the real count a moment later
+  }).catch(err=>{
+    codeEl.textContent='ОШИБКА СЕТИ';
+    console.error('Firebase write failed:',err);
+  });
+}
+function joinByCode(){
+  const code=document.getElementById('join-code').value.trim().toUpperCase();
+  const msg=document.getElementById('join-msg');
+  if(!roomsRef){ msg.textContent='Нет связи с сервером комнат.'; msg.className='msg err'; return; }
+  if(!code){ msg.textContent='Введите код комнаты.'; msg.className='msg err'; return; }
+  msg.textContent='Поиск комнаты...'; msg.className='msg';
+  // ask the server directly rather than trusting the local cache, in case it just changed
+  roomsRef.child(code).once('value').then(snap=>{
+    if(!snap.exists()){ msg.textContent='Комната не найдена.'; msg.className='msg err'; return; }
+    msg.textContent='Подключение к комнате '+code+'...'; msg.className='msg ok';
+    renderRadarDots('ПОДКЛЮЧЕНИЕ · '+code);
+    setTimeout(()=>enterRoom(code), 500);
+  }).catch(err=>{
+    msg.textContent='Ошибка связи с сервером.'; msg.className='msg err';
+    console.error('Firebase read failed:',err);
+  });
+}
+function isMyRoom(room){
+  const email=getSession();
+  if(!email) return false;
+  if(room.ownerEmail) return room.ownerEmail===email; // normal case
+  const users=getUsers();
+  const myName=users[email]?users[email].name:null;
+  return !!(myName && room.host===myName); // fallback for rooms made before ownerEmail existed
+}
+function renderRooms(){
+  const list=document.getElementById('room-list');
+  if(!list) return;
+  const rooms=roomsArray();
+  if(!rooms.length){ list.innerHTML='<div class="empty">Открытых сессий пока нет.</div>'; renderRadarDots(); return; }
+  list.innerHTML=rooms.slice(-8).reverse().map(r=>{
+    const delBtn=isMyRoom(r)?'<button class="room-del" onclick="deleteRoom(\''+r.code+'\')" title="Удалить комнату">УДАЛИТЬ</button>':'';
+    return '<div class="room-row"><span>'+r.code+' · GM: '+escapeHtml(r.host||'???')+'</span><span class="room-row-actions"><button onclick="document.getElementById(\'join-code\').value=\''+r.code+'\';joinByCode()">ВОЙТИ</button>'+delBtn+'</span></div>';
+  }).join('');
+  renderRadarDots();
+}
+function deleteRoom(code){
+  if(!roomsRef) return;
+  const room=currentRooms[code];
+  if(!room || !isMyRoom(Object.assign({code:code},room))) return; // only the creator can delete their own room
+  roomsRef.child(code).remove().catch(err=>console.error('Firebase delete failed:',err));
+  // no manual re-render needed — the live listener below updates everyone, including this tab
+}
+
+// ---------- radar: one dot per open room (fed by the live Firebase cache) ----------
+function renderRadarDots(statusOverride){
+  const box=document.getElementById('radar-box');
+  const status=document.getElementById('radar-status');
+  if(!box) return;
+  box.querySelectorAll('.radar-blip').forEach(el=>el.remove());
+  const rooms=roomsArray();
+  const count=rooms.length;
+  const shown=Math.min(count,28); // cap so the circle doesn't get overcrowded
+  for(let i=0;i<shown;i++){
+    const dot=document.createElement('div');
+    dot.className='radar-blip';
+    const angle=i*137.508*(Math.PI/180); // golden-angle spread = even coverage, stable per index
+    const radius=14+((i*7)%30); // rings between ~14% and ~44% from center
+    const left=50+radius*Math.cos(angle);
+    const top=50+radius*Math.sin(angle);
+    dot.style.left=left+'%';
+    dot.style.top=top+'%';
+    dot.style.animationDuration=(1.6+Math.random()*1.4).toFixed(2)+'s';
+    dot.style.animationDelay=(Math.random()*1.5).toFixed(2)+'s';
+    box.appendChild(dot);
+  }
+  if(count>0){ box.classList.add('active'); } else { box.classList.remove('active'); }
+  if(status) status.textContent=statusOverride || (count>0 ? ('ОБНАРУЖЕНО СЕРВЕРОВ: '+count) : 'ОЖИДАНИЕ СИГНАЛА');
+}
+function flashRadar(){
+  const box=document.getElementById('radar-box');
+  if(!box) return;
+  box.classList.remove('radar-alert'); void box.offsetWidth; // restart animation if already mid-flash
+  box.classList.add('radar-alert');
+  setTimeout(()=>box.classList.remove('radar-alert'),900);
+}
+// ---------- live, cross-device sync ----------
+// This fires for EVERY browser connected to the database, on any device, the
+// instant a room is created/deleted anywhere — this is what makes the radar
+// light up for every player, not just the one who made the room.
+if(roomsRef){
+  roomsRef.on('value', snapshot=>{
+    const previousCount=Object.keys(currentRooms).length;
+    currentRooms = snapshot.val() || {};
+    const newCount=Object.keys(currentRooms).length;
+    const mainArea=document.getElementById('main-area');
+    const loggedIn = mainArea && !mainArea.classList.contains('hidden');
+    if(roomsSyncReady && loggedIn && newCount>previousCount){
+      flashRadar();
+      showToast('Обнаружена новая сессия');
+      addNotification('Новая игровая сессия обнаружена на радаре');
+    }
+    roomsSyncReady=true;
+    renderRooms();
+  }, err=>{
+    console.error('Firebase rooms listener error:',err);
+  });
+}
+
+// ---------- game timer ----------
+let gameTimerHandle=null, gameTimerStart=null;
+function startGameTimer(){
+  if(gameTimerHandle) return; // already running this session
+  gameTimerStart=Date.now();
+  const el=document.getElementById('game-time');
+  function tick(){
+    const diff=Math.floor((Date.now()-gameTimerStart)/1000);
+    const h=String(Math.floor(diff/3600)).padStart(2,'0');
+    const m=String(Math.floor((diff%3600)/60)).padStart(2,'0');
+    const s=String(diff%60).padStart(2,'0');
+    el.textContent=h+':'+m+':'+s;
+  }
+  tick();
+  gameTimerHandle=setInterval(tick,1000);
+}
+function stopGameTimer(){
+  if(gameTimerHandle){ clearInterval(gameTimerHandle); gameTimerHandle=null; }
+  gameTimerStart=null;
+  const el=document.getElementById('game-time');
+  if(el) el.textContent='00:00:00';
+}
+
+// ---------- sound visualizer (purely decorative — no audio input, just moving bars) ----------
+function buildSoundVis(){
+  const vis=document.getElementById('sound-vis');
+  if(!vis || vis.childElementCount) return;
+  const BARS=52;
+  for(let i=0;i<BARS;i++){
+    const bar=document.createElement('div');
+    bar.className='sound-bar';
+    const h1=(0.18+Math.random()*0.15).toFixed(2);
+    const h2=(0.5+Math.random()*0.35).toFixed(2);
+    const dur=(0.7+Math.random()*0.9).toFixed(2);
+    const delay=(Math.random()*1.2).toFixed(2);
+    bar.style.setProperty('--h1',h1);
+    bar.style.setProperty('--h2',h2);
+    bar.style.animationDuration=dur+'s';
+    bar.style.animationDelay=delay+'s';
+    vis.appendChild(bar);
+  }
+}
+
+// ---------- toast ----------
+function showToast(text){
+  const t=document.getElementById('toast');
+  t.textContent=text;
+  t.classList.add('show');
+  clearTimeout(t._hideTimer);
+  t._hideTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// ---------- notifications (mail) ----------
+const NOTIF_KEY='vng_notifications';
+function getNotifications(){ try{return JSON.parse(localStorage.getItem(NOTIF_KEY))||[];}catch(e){return [];} }
+function saveNotifications(n){ try{localStorage.setItem(NOTIF_KEY,JSON.stringify(n));}catch(e){} }
+function addNotification(text){
+  const n=getNotifications();
+  n.push({text:text, time:new Date().toLocaleString('ru-RU')});
+  saveNotifications(n.slice(-30));
+}
+function renderMailList(){
+  const list=document.getElementById('mail-list');
+  if(!list) return;
+  const n=getNotifications();
+  if(!n.length){ list.innerHTML='<div class="empty">Нет новых уведомлений.</div>'; return; }
+  list.innerHTML=n.slice().reverse().map(x=>
+    '<div class="mail-row"><div class="mail-time px-font">'+x.time+'</div><div>'+escapeHtml(x.text)+'</div></div>'
+  ).join('');
+}
+
+// ---------- JSON file storage ----------
+const FILES_KEY='vng_json_files';
+function getStoredFiles(){ try{return JSON.parse(localStorage.getItem(FILES_KEY))||[];}catch(e){return [];} }
+function saveStoredFiles(f){ try{localStorage.setItem(FILES_KEY,JSON.stringify(f));}catch(e){} }
+function setupFileDrop(){
+  const drop=document.getElementById('file-drop');
+  if(!drop) return;
+  drop.addEventListener('dragover',e=>{ e.preventDefault(); drop.classList.add('dragover'); });
+  drop.addEventListener('dragleave',()=>drop.classList.remove('dragover'));
+  drop.addEventListener('drop',e=>{
+    e.preventDefault(); drop.classList.remove('dragover');
+    if(e.dataTransfer && e.dataTransfer.files) handleJsonUpload(e.dataTransfer.files);
+  });
+}
+function handleJsonUpload(fileList){
+  const msg=document.getElementById('files-msg');
+  const files=Array.from(fileList||[]);
+  if(!files.length) return;
+  let pending=files.length, okCount=0, errCount=0;
+  files.forEach(file=>{
+    if(!/\.json$/i.test(file.name)){
+      errCount++; pending--; if(pending===0) finish();
+      return;
+    }
+    const reader=new FileReader();
+    reader.onload=()=>{
+      try{
+        JSON.parse(reader.result); // validate
+        const stored=getStoredFiles();
+        stored.push({id:Date.now()+'-'+Math.random().toString(36).slice(2,7), name:file.name, content:reader.result, date:new Date().toLocaleString('ru-RU')});
+        saveStoredFiles(stored);
+        okCount++;
+      }catch(e){ errCount++; }
+      pending--; if(pending===0) finish();
+    };
+    reader.onerror=()=>{ errCount++; pending--; if(pending===0) finish(); };
+    reader.readAsText(file);
+  });
+  function finish(){
+    if(msg){
+      if(okCount && !errCount){ msg.textContent='Загружено файлов: '+okCount+'.'; msg.className='msg ok'; }
+      else if(okCount && errCount){ msg.textContent='Загружено: '+okCount+', ошибок: '+errCount+' (не JSON).'; msg.className='msg err'; }
+      else { msg.textContent='Ошибка: файл(ы) не распознаны как JSON.'; msg.className='msg err'; }
+    }
+    renderFilesList();
+  }
+}
+function deleteStoredFile(id){
+  saveStoredFiles(getStoredFiles().filter(f=>f.id!==id));
+  renderFilesList();
+}
+function downloadStoredFile(id){
+  const f=getStoredFiles().find(x=>x.id===id);
+  if(!f) return;
+  const blob=new Blob([f.content],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=f.name; document.body.appendChild(a); a.click();
+  a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function renderFilesList(){
+  const list=document.getElementById('files-list');
+  if(!list) return;
+  const files=getStoredFiles();
+  if(!files.length){ list.innerHTML='<div class="empty">Файлы не загружены.</div>'; return; }
+  list.innerHTML=files.slice().reverse().map(f=>
+    '<div class="file-row"><div class="file-name" title="'+escapeHtml(f.name)+'">'+escapeHtml(f.name)+'</div>'+
+    '<div class="file-actions">'+
+    '<button onclick="downloadStoredFile(\''+f.id+'\')">↓</button>'+
+    '<button onclick="deleteStoredFile(\''+f.id+'\')">✕</button>'+
+    '</div></div>'
+  ).join('');
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---------- room join: BIOS-style loading screen, then placeholder room ----------
+function enterRoom(code){
+  document.getElementById('app-screen').classList.add('hidden');
+  const decor=document.querySelector('.bg-decor');
+  if(decor) decor.classList.add('decor-hidden');
+  const boot=document.getElementById('room-boot-screen');
+  const linesEl=document.getElementById('room-boot-lines');
+  linesEl.innerHTML='';
+  snapOpen(boot);
+
+  const lines=[
+    'VNG BIOS v2.2.0   (C) 1987-2026 VNG Systems',
+    'CPU: 80486DX2-66 ................ OK',
+    'Memory test: 640K OK',
+    'C:\\>VNG.EXE /ROOM "'+(code||'???')+'"',
+    '',
+    'Establishing uplink.......... OK',
+    'Authenticating operator...... OK',
+    'Loading room data............ OK',
+    '',
+    'Joined successfully'
+  ];
+
+  let li=0;
+  function nextLine(){
+    if(li>=lines.length){
+      setTimeout(()=>showRoomPlaceholder(code),700);
+      return;
+    }
+    const text=lines[li];
+    const lineDiv=document.createElement('div');
+    if(text==='Joined successfully') lineDiv.classList.add('joined-ok');
+    linesEl.appendChild(lineDiv);
+    typeLine(lineDiv,text,()=>{
+      li++;
+      setTimeout(nextLine, text===''?120:260+Math.random()*260);
+    });
+  }
+  function typeLine(el,text,done){
+    if(!text){ done(); return; }
+    let i=0;
+    (function step(){
+      el.textContent=text.slice(0,i)+(i<text.length?'▌':'');
+      i++;
+      if(i>text.length){ el.textContent=text; done(); return; }
+      setTimeout(step,8+Math.random()*22);
+    })();
+  }
+  nextLine();
+}
+function showRoomPlaceholder(code){
+  document.getElementById('room-boot-screen').classList.add('hidden');
+  const codeEl=document.getElementById('room-screen-code');
+  if(codeEl) codeEl.textContent=code?('· '+code):'';
+  const room=document.getElementById('room-screen');
+  room.classList.remove('hidden');
+  room.classList.add('crt-on');
+  setTimeout(()=>room.classList.remove('crt-on'),500);
+  prepGlitch();
+  enterRoomLive(code);
+  renderNpcSheetsList();
+}
+function leaveRoomPlaceholder(){
+  leaveRoomLive();
+  document.getElementById('room-screen').classList.add('hidden');
+  const decor=document.querySelector('.bg-decor');
+  if(decor) decor.classList.remove('decor-hidden');
+  const app=document.getElementById('app-screen');
+  app.classList.remove('hidden');
+  app.classList.add('crt-on');
+  setTimeout(()=>app.classList.remove('crt-on'),500);
+  document.getElementById('create-panel').classList.add('hidden');
+  document.getElementById('join-panel').classList.add('hidden');
+}
+
+// ======================================================================
+// LIVE ROOM: players list, chat + rolls, dice roller
+// ======================================================================
+let currentRoomCode=null, currentPlayerId=null, playersLiveRef=null, chatLiveRef=null;
+let chatFilter='all', chatCache={};
+
+function sanitizeKey(s){ return String(s||'').replace(/[.#$\[\]]/g,'_'); }
+function currentPlayerName(){
+  const email=getSession();
+  const users=getUsers();
+  return (email && users[email]) ? users[email].name : ('Гость-'+Math.floor(Math.random()*900+100));
+}
+
+function enterRoomLive(code){
+  if(!roomsRef){ showToast('Нет связи с сервером комнат'); return; }
+  currentRoomCode=code;
+  currentPlayerId=sanitizeKey(getSession()||('guest_'+Date.now()));
+
+  // live player presence for this room
+  playersLiveRef=roomsRef.child(code).child('players');
+  playersLiveRef.child(currentPlayerId).set({name:currentPlayerName(), joinedAt:Date.now()});
+  playersLiveRef.child(currentPlayerId).onDisconnect().remove();
+  playersLiveRef.on('value', snap=>renderPlayersList(snap.val()||{}));
+
+  // live chat + roll feed for this room
+  chatLiveRef=roomsRef.child(code).child('chat');
+  chatCache={};
+  document.getElementById('chat-feed').innerHTML='';
+  chatLiveRef.limitToLast(200).on('child_added', snap=>{
+    chatCache[snap.key]=snap.val();
+    renderChatFeed();
+  });
+
+  buildDiceGrid();
+  updateDiceSummary();
+  document.getElementById('roll-result-box').textContent='ЗДЕСЬ ПОКАЖЕТСЯ БРОСОК';
+}
+
+function leaveRoomLive(){
+  if(playersLiveRef && currentPlayerId){ playersLiveRef.child(currentPlayerId).remove(); playersLiveRef.off(); }
+  if(chatLiveRef){ chatLiveRef.off(); }
+  playersLiveRef=null; chatLiveRef=null; currentRoomCode=null; currentPlayerId=null;
+}
+
+// ---------- players list ----------
+function renderPlayersList(players){
+  const list=document.getElementById('players-list');
+  const keys=Object.keys(players);
+  if(!keys.length){ list.innerHTML='<div class="empty">Пока никого нет</div>'; return; }
+  list.innerHTML=keys.map(k=>{
+    const p=players[k];
+    return '<div class="player-row"><span>'+escapeHtml(p.name||'???')+'</span><button title="Звуковой сигнал" onclick="pingPlayer(\''+escapeHtml(p.name||'')+'\')">🔔</button></div>';
+  }).join('');
+}
+function pingPlayer(name){
+  showToast('Сигнал отправлен игроку: '+name);
+}
+
+// ---------- chat + rolls ----------
+function setChatFilter(f){
+  chatFilter=f;
+  document.querySelectorAll('.chat-tab').forEach(btn=>btn.classList.toggle('active', btn.getAttribute('data-filter')===f));
+  renderChatFeed();
+}
+function renderChatFeed(){
+  const feed=document.getElementById('chat-feed');
+  if(!feed) return;
+  const entries=Object.keys(chatCache).map(k=>Object.assign({key:k}, chatCache[k]))
+    .sort((a,b)=>(a.ts||0)-(b.ts||0))
+    .filter(m=>chatFilter==='all' || m.type===chatFilter);
+  if(!entries.length){ feed.innerHTML='<div class="chat-line system">Лента пуста — бросьте куб или напишите в чат</div>'; return; }
+  const nearBottom = feed.scrollTop+feed.clientHeight >= feed.scrollHeight-40;
+  feed.innerHTML=entries.map(m=>{
+    if(m.type==='roll') return '<div class="chat-line roll">'+escapeHtml(m.name)+' бросил(а) '+escapeHtml(m.text)+'</div>';
+    return '<div class="chat-line"><span class="chat-name">'+escapeHtml(m.name)+':</span> '+escapeHtml(m.text)+'</div>';
+  }).join('');
+  if(nearBottom) feed.scrollTop=feed.scrollHeight;
+}
+function pushChatMessage(type,text){
+  const entry={type:type, name:currentPlayerName(), text:text, ts:Date.now()};
+  if(chatLiveRef){
+    chatLiveRef.push(entry);
+  } else {
+    chatCache['local-'+Date.now()]=entry; // offline fallback so the feed still shows something locally
+    renderChatFeed();
+  }
+}
+function sendChatMessage(){
+  const input=document.getElementById('chat-input');
+  const text=input.value.trim();
+  if(!text) return;
+  pushChatMessage('chat',text);
+  input.value='';
+}
+
+// ---------- dice ----------
+// sides now matches each die's corner count logically (D3=triangle, D4=square, D5=pentagon, ...)
+const DICE_TYPES=[
+  {id:'d3',  max:3,   label:'D3',  sides:3},
+  {id:'d4',  max:4,   label:'D4',  sides:4},
+  {id:'d5',  max:5,   label:'D5',  sides:5},
+  {id:'d6',  max:6,   label:'D6',  sides:6},
+  {id:'d12', max:12,  label:'D12', sides:12},
+  {id:'d20', max:20,  label:'D20', sides:20},
+  {id:'d100',max:100, label:'D100',sides:0},
+  {id:'dinf',max:null,label:'D∞',  sides:-1}
+];
+let selectedDie='d20';
+const ROLL_ANIM_MS=2000; // ~2 seconds, as requested
+
+function polyPoints(sides, cx, cy, r){
+  cx=cx??12; cy=cy??13; r=r??9;
+  const pts=[];
+  for(let i=0;i<sides;i++){
+    const angle=(Math.PI*2*i/sides)-Math.PI/2;
+    pts.push((cx+r*Math.cos(angle)).toFixed(2)+','+(cy+r*Math.sin(angle)).toFixed(2));
+  }
+  return pts.join(' ');
+}
+function dieShapeSvg(d, big){
+  const r = big ? 38 : 9, c = big ? 50 : (d.sides===0?13:12);
+  const vb = big ? '0 0 100 100' : '0 0 24 24';
+  const sw = big ? 4 : 1.4;
+  let inner;
+  if(d.sides===0) inner='<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="currentColor" stroke-width="'+sw+'"/>';
+  else if(d.sides===-1) inner='<text x="'+c+'" y="'+(big?65:17)+'" font-size="'+(big?48:14)+'" text-anchor="middle" fill="currentColor">∞</text>';
+  else inner='<polygon points="'+polyPoints(d.sides,c,c,r)+'" fill="none" stroke="currentColor" stroke-width="'+sw+'"/>';
+  return '<svg viewBox="'+vb+'">'+inner+'</svg>';
+}
+function dieIconHtml(d){ return dieShapeSvg(d,false); }
+function buildDiceGrid(){
+  const grid=document.getElementById('dice-grid');
+  if(!grid) return;
+  grid.innerHTML=DICE_TYPES.map(d=>
+    '<button class="die-btn'+(selectedDie===d.id?' active':'')+'" onclick="selectDie(\''+d.id+'\')">'+
+    '<span class="die-icon">'+dieIconHtml(d)+'</span><span class="die-label px-font">'+d.label+'</span></button>'
+  ).join('');
+}
+function selectDie(id){
+  selectedDie=id; // D∞ just gets picked like any other die — no popup, it randomizes its own range when rolled
+  buildDiceGrid();
+  updateDiceSummary();
+}
+function currentDieMax(){
+  const d=DICE_TYPES.find(x=>x.id===selectedDie);
+  return d?d.max:20;
+}
+function updateDiceSummary(){
+  const countInput=document.getElementById('dice-count');
+  const count=Math.max(1,Math.min(10, parseInt(countInput.value,10)||1));
+  countInput.value=count;
+  const label = selectedDie==='dinf' ? 'd∞' : ('d'+currentDieMax());
+  document.getElementById('dice-summary').textContent=count+label+' | способность: выкл';
+}
+
+let rollInProgress=false;
+function rollDice(){
+  if(rollInProgress) return; // ignore spam-clicks mid-animation
+  const count=Math.max(1,Math.min(10, parseInt(document.getElementById('dice-count').value,10)||1));
+  const die=DICE_TYPES.find(x=>x.id===selectedDie);
+  // D∞ picks its own random range each roll — genuinely unpredictable, no prompt needed
+  const max = selectedDie==='dinf' ? (2+Math.floor(Math.random()*999)) : currentDieMax();
+  if(!max || max<1) return;
+
+  rollInProgress=true;
+  const box=document.getElementById('roll-result-box');
+  const btn=document.querySelector('.roll-btn');
+  const panel=document.querySelector('.dice-panel');
+  const activeDieBtn=document.querySelector('.die-btn.active');
+  box.classList.remove('roll-blink','impact','strobe-white','strobe-red');
+  box.classList.add('rolling');
+  box.innerHTML='<div class="roll-shape-anim">'+dieShapeSvg(die,true)+'</div><div class="roll-shape-number px-font" id="roll-cycle-num"></div>';
+  if(btn) btn.disabled=true;
+  if(activeDieBtn){ activeDieBtn.classList.remove('rolling'); void activeDieBtn.offsetWidth; activeDieBtn.classList.add('rolling'); }
+
+  // erratic number flicker underneath the spinning shape
+  const numEl=document.getElementById('roll-cycle-num');
+  const tickTimer=setInterval(()=>{
+    const fake=[]; for(let i=0;i<count;i++) fake.push(1+Math.floor(Math.random()*max));
+    if(numEl) numEl.textContent = fake.length>1 ? fake.join('+') : String(fake[0]);
+  },55);
+
+  // occasional white/red strobe flashes — chaotic, but sparing
+  const strobeTimer=setInterval(()=>{
+    box.classList.remove('strobe-white','strobe-red');
+    if(Math.random()<0.22){
+      box.classList.add(Math.random()<0.5?'strobe-white':'strobe-red');
+      setTimeout(()=>box.classList.remove('strobe-white','strobe-red'),25+Math.random()*25);
+    }
+  },130);
+
+  setTimeout(()=>{
+    clearInterval(tickTimer);
+    clearInterval(strobeTimer);
+    box.classList.remove('strobe-white','strobe-red');
+    finishRoll(count,max,box,btn,die,panel);
+  }, ROLL_ANIM_MS);
+}
+function finishRoll(count,max,box,btn,die,panel){
+  const rolls=[];
+  for(let i=0;i<count;i++) rolls.push(1+Math.floor(Math.random()*max));
+  const total=rolls.reduce((a,b)=>a+b,0);
+  box.classList.remove('rolling');
+  box.innerHTML='';
+  box.textContent = rolls.length>1 ? rolls.join(' + ')+' = '+total : String(rolls[0]);
+
+  // hard impact punch the instant it lands
+  box.classList.remove('impact'); void box.offsetWidth;
+  box.classList.add('impact');
+
+  const hitExtreme = rolls.some(v=>v===1||v===max);
+  box.classList.remove('roll-blink'); void box.offsetWidth;
+  if(hitExtreme){
+    box.classList.add('roll-blink');
+    if(panel){ panel.classList.remove('crit-shake'); void panel.offsetWidth; panel.classList.add('crit-shake'); }
+  }
+  if(btn) btn.disabled=false;
+  rollInProgress=false;
+
+  const dieLabel='d'+(selectedDie==='dinf'?max:die.max);
+  const rollText = rolls.length>1
+    ? (count+dieLabel+': ['+rolls.join(', ')+'] = '+total)
+    : (dieLabel+': '+rolls[0]);
+  pushChatMessage('roll', rollText);
+}
+
+// ---------- modal ----------
+function openModal(type){
+  const overlay=document.getElementById('modal-overlay');
+  const title=document.getElementById('modal-title');
+  const body=document.getElementById('modal-body');
+  document.getElementById('modal-box').classList.remove('modal-wide');
+  if(type==='mail'){
+    title.textContent='■ ПОЧТА';
+    body.innerHTML='<div class="mail-list" id="mail-list"></div>';
+    renderMailList();
+  } else if(type==='files'){
+    title.textContent='■ ФАЙЛЫ';
+    body.innerHTML=
+      '<div class="file-drop px-font" id="file-drop" onclick="document.getElementById(\'json-file-input\').click()">'+
+      '⬆ ПЕРЕТАЩИТЕ JSON СЮДА ИЛИ НАЖМИТЕ ДЛЯ ВЫБОРА'+
+      '<input type="file" id="json-file-input" accept=".json,application/json" multiple style="display:none" onchange="handleJsonUpload(this.files)">'+
+      '</div>'+
+      '<div class="msg" id="files-msg"></div>'+
+      '<div id="files-list"></div>';
+    setupFileDrop();
+    renderFilesList();
+  } else if(type==='credits'){
+    title.textContent='■ АВТОРЫ';
+    body.innerHTML=
+      '<div class="credits-body">'+
+      '<p>Терминал <b>VNG²</b> разработан и оформлен <b>Ani</b>.</p>'+
+      '<p>Дизайн интерфейса, вёрстка и программная часть выполнены вручную специально для сообщества настольных ролевых игр.</p>'+
+      '<p class="menu-desc">Версия терминала: 2.0</p>'+
+      '</div>';
+  }
+  overlay.classList.remove('hidden');
+  snapOpen(document.getElementById('modal-box'));
+}
+function closeModal(){
+  document.getElementById('modal-overlay').classList.add('hidden');
+  document.getElementById('modal-box').classList.remove('modal-wide');
+  npcDraft=null;
+}
+document.getElementById('modal-overlay').addEventListener('click',e=>{
+  if(e.target.id==='modal-overlay') closeModal();
+});
+
+// ---------- NPC character sheets ----------
+const NPC_SHEETS_KEY='vng_npc_sheets';
+function getNpcSheets(){ try{return JSON.parse(localStorage.getItem(NPC_SHEETS_KEY))||[];}catch(e){return [];} }
+function saveNpcSheets(list){ try{localStorage.setItem(NPC_SHEETS_KEY,JSON.stringify(list));}catch(e){} }
+
+const NPC_CLASS_OPTIONS=['Воин','Маг','Плут','Жрец','Следопыт','Варвар','Бард','Другое'];
+const NPC_TYPE_OPTIONS=['Союзник','Враг','Нейтральный','Игрок','Босс'];
+const NPC_DEFAULT_STATS=['Сила','Ловкость','Телосложение','Интеллект','Мудрость','Харизма'];
+
+let npcDraft=null; // the sheet currently being built/edited in the modal
+
+function blankNpcDraft(){
+  return {
+    id:null,
+    avatar:'', banner:'',
+    name:'', cls:NPC_CLASS_OPTIONS[0], type:NPC_TYPE_OPTIONS[0],
+    lv1:'', lv2:'', lv3:'', desc:'',
+    stats:NPC_DEFAULT_STATS.map(n=>({name:n,value:0}))
+  };
+}
+
+function openNpcSheetModal(editId){
+  const existing = editId ? getNpcSheets().find(s=>s.id===editId) : null;
+  npcDraft = existing ? JSON.parse(JSON.stringify(existing)) : blankNpcDraft();
+  const overlay=document.getElementById('modal-overlay');
+  const title=document.getElementById('modal-title');
+  const box=document.getElementById('modal-box');
+  box.classList.add('modal-wide');
+  title.textContent = existing ? '■ РЕДАКТИРОВАНИЕ ЛИСТА' : '■ НОВЫЙ ЛИСТ НПС';
+  document.getElementById('modal-body').innerHTML = npcSheetFormHtml();
+  overlay.classList.remove('hidden');
+  snapOpen(box);
+}
+
+function npcSheetFormHtml(){
+  const d=npcDraft;
+  const avatarInner = d.avatar
+    ? '<img src="'+d.avatar+'" alt="avatar">'
+    : '<span class="npc-avatar-placeholder px-font">PUBLISH FILE</span>';
+  const bannerStyle = d.banner ? ' style="background-image:url(\''+d.banner+'\')"' : '';
+  return ''+
+  '<div class="npc-form-grid">'+
+    '<div>'+
+      '<div class="npc-portrait-wrap"'+bannerStyle+' onclick="document.getElementById(\'npc-banner-input\').click()">'+
+        '<div class="npc-avatar-box" onclick="event.stopPropagation();document.getElementById(\'npc-avatar-input\').click()">'+avatarInner+'</div>'+
+      '</div>'+
+      '<div class="npc-portrait-hint px-font">Рамка — аватар (нажмите). Фон за рамкой — баннер, можно GIF или картинку.</div>'+
+      '<input type="file" id="npc-avatar-input" accept="image/*" class="hidden" onchange="handleNpcImage(this.files,\'avatar\')">'+
+      '<input type="file" id="npc-banner-input" accept="image/*" class="hidden" onchange="handleNpcImage(this.files,\'banner\')">'+
+    '</div>'+
+    '<div>'+
+      '<label class="px-font">ИМЯ</label>'+
+      '<input type="text" id="npc-f-name" value="'+escapeHtml(d.name)+'" placeholder="Имя персонажа" oninput="npcDraft.name=this.value">'+
+      '<label class="px-font">КЛАСС</label>'+
+      '<select id="npc-f-class" onchange="npcDraft.cls=this.value">'+
+        NPC_CLASS_OPTIONS.map(c=>'<option'+(c===d.cls?' selected':'')+'>'+c+'</option>').join('')+
+      '</select>'+
+      '<label class="px-font">ТИП</label>'+
+      '<select id="npc-f-type" onchange="npcDraft.type=this.value">'+
+        NPC_TYPE_OPTIONS.map(c=>'<option'+(c===d.type?' selected':'')+'>'+c+'</option>').join('')+
+      '</select>'+
+    '</div>'+
+  '</div>'+
+  ['lv1','lv2','lv3'].map((k,i)=>
+    '<div class="npc-level-box">'+
+      '<label class="px-font">УРОВЕНЬ '+(i+1)+'</label>'+
+      '<textarea oninput="npcDraft.'+k+'=this.value" placeholder="Способности / заметки на уровне '+(i+1)+'">'+escapeHtml(d[k])+'</textarea>'+
+    '</div>'
+  ).join('')+
+  '<div class="npc-level-box">'+
+    '<label class="px-font">ОПИСАНИЕ</label>'+
+    '<textarea style="min-height:90px" oninput="npcDraft.desc=this.value" placeholder="Описание персонажа">'+escapeHtml(d.desc)+'</textarea>'+
+  '</div>'+
+  '<label class="px-font">ХАРАКТЕРИСТИКИ</label>'+
+  '<div class="npc-stats-grid" id="npc-stats-grid">'+npcStatsGridHtml()+'</div>'+
+  '<button type="button" class="btn-outline-sm px-font npc-add-stat-btn" onclick="addNpcStat()">[ + ДОБАВИТЬ ХАРАКТЕРИСТИКУ ]</button>'+
+  '<button class="btn px-font" style="margin-top:26px" onclick="saveNpcSheet()">'+(d.id?'[ СОХРАНИТЬ ]':'[ СОЗДАТЬ ЛИСТ ]')+'</button>'+
+  '<div class="msg" id="npc-form-msg"></div>';
+}
+
+function npcStatsGridHtml(){
+  return npcDraft.stats.map((s,i)=>
+    '<div class="npc-stat-box">'+
+      '<input class="npc-stat-name px-font" value="'+escapeHtml(s.name)+'" oninput="npcDraft.stats['+i+'].name=this.value">'+
+      '<div class="npc-stat-value px-font" id="npc-stat-val-'+i+'">'+s.value+'</div>'+
+      '<div class="npc-stat-btns">'+
+        '<button type="button" onclick="adjustNpcStat('+i+',1)">+</button>'+
+        '<button type="button" onclick="adjustNpcStat('+i+',-1)">−</button>'+
+      '</div>'+
+      (npcDraft.stats.length>1 ? '<div class="npc-stat-remove" onclick="removeNpcStat('+i+')">удалить</div>' : '')+
+    '</div>'
+  ).join('');
+}
+function adjustNpcStat(i,delta){
+  // simple raw +/- for now, no point-budget logic
+  const s=npcDraft.stats[i]; if(!s) return;
+  s.value=Math.max(0,s.value+delta);
+  const el=document.getElementById('npc-stat-val-'+i);
+  if(el) el.textContent=s.value;
+}
+function addNpcStat(){
+  npcDraft.stats.push({name:'Новая',value:0});
+  document.getElementById('npc-stats-grid').innerHTML=npcStatsGridHtml();
+}
+function removeNpcStat(i){
+  npcDraft.stats.splice(i,1);
+  document.getElementById('npc-stats-grid').innerHTML=npcStatsGridHtml();
+}
+function handleNpcImage(fileList,kind){
+  const file=fileList && fileList[0]; if(!file) return;
+  if(!/^image\//.test(file.type)) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    npcDraft[kind]=reader.result;
+    document.getElementById('modal-body').innerHTML=npcSheetFormHtml();
+  };
+  reader.readAsDataURL(file);
+}
+function saveNpcSheet(){
+  const msg=document.getElementById('npc-form-msg');
+  if(!npcDraft.name.trim()){
+    if(msg){ msg.textContent='Введите имя персонажа.'; msg.className='msg err'; }
+    return;
+  }
+  const list=getNpcSheets();
+  if(npcDraft.id){
+    const idx=list.findIndex(s=>s.id===npcDraft.id);
+    if(idx>-1) list[idx]=npcDraft; else list.push(npcDraft);
+  } else {
+    npcDraft.id='npc-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
+    list.push(npcDraft);
+  }
+  saveNpcSheets(list);
+  const savedName=npcDraft.name;
+  closeModal();
+  renderNpcSheetsList();
+  showToast('Лист сохранён: '+savedName);
+}
+function deleteNpcSheet(id,ev){
+  if(ev) ev.stopPropagation();
+  saveNpcSheets(getNpcSheets().filter(s=>s.id!==id));
+  renderNpcSheetsList();
+}
+function renderNpcSheetsList(){
+  const wrap=document.getElementById('npc-sheets-list');
+  const emptyBox=document.getElementById('sheets-empty-box');
+  if(!wrap) return;
+  const list=getNpcSheets();
+  if(!list.length){
+    wrap.innerHTML=''; wrap.classList.add('hidden');
+    if(emptyBox) emptyBox.classList.remove('hidden');
+    return;
+  }
+  if(emptyBox) emptyBox.classList.add('hidden');
+  wrap.classList.remove('hidden');
+  wrap.innerHTML=list.map(s=>
+    '<div class="npc-sheet-card" onclick="viewNpcSheet(\''+s.id+'\')">'+
+      '<div class="npc-sheet-thumb">'+(s.avatar?'<img src="'+s.avatar+'">':'<span class="px-font">N</span>')+'</div>'+
+      '<div class="npc-sheet-meta"><div class="npc-sheet-name">'+escapeHtml(s.name)+'</div>'+
+      '<div class="npc-sheet-sub">'+escapeHtml(s.cls)+' · '+escapeHtml(s.type)+'</div></div>'+
+      '<button class="npc-sheet-del px-font" onclick="deleteNpcSheet(\''+s.id+'\',event)">✕</button>'+
+    '</div>'
+  ).join('');
+}
+function viewNpcSheet(id){
+  const s=getNpcSheets().find(x=>x.id===id); if(!s) return;
+  const overlay=document.getElementById('modal-overlay');
+  const title=document.getElementById('modal-title');
+  const box=document.getElementById('modal-box');
+  box.classList.add('modal-wide');
+  title.textContent='■ '+s.name.toUpperCase();
+  const bannerStyle = s.banner ? ' style="background-image:url(\''+s.banner+'\')"' : '';
+  document.getElementById('modal-body').innerHTML =
+    '<div class="npc-portrait-wrap"'+bannerStyle+'>'+
+      '<div class="npc-avatar-box">'+(s.avatar?'<img src="'+s.avatar+'">':'<span class="npc-avatar-placeholder px-font">NO IMG</span>')+'</div>'+
+    '</div>'+
+    '<div style="margin-top:14px;"><b>'+escapeHtml(s.cls)+'</b> · '+escapeHtml(s.type)+'</div>'+
+    ['lv1','lv2','lv3'].map((k,i)=> s[k] ? '<div class="npc-view-level"><b>Уровень '+(i+1)+'</b><br>'+escapeHtml(s[k])+'</div>' : '').join('')+
+    (s.desc ? '<div class="npc-view-level">'+escapeHtml(s.desc)+'</div>' : '')+
+    '<div class="npc-view-stats">'+s.stats.map(st=>'<div class="npc-view-stat">'+escapeHtml(st.name)+'<b>'+st.value+'</b></div>').join('')+'</div>'+
+    '<button class="btn btn-outline px-font" style="margin-top:20px" onclick="openNpcSheetModal(\''+s.id+'\')">[ РЕДАКТИРОВАТЬ ]</button>';
+  overlay.classList.remove('hidden');
+  snapOpen(box);
+}
+</script>
+</body>
+</html>
